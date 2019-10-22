@@ -155,6 +155,7 @@ function civicrm_api3_email_send($params) {
        */
       $toName = '';
       $email = $alternativeEmailAddress;
+      $toContact = CRM_Emailapi_CivirulesAction_Send::checkAlternativeAddress(array('alternate_receiver_address'=>$email));
     } elseif ($contact['do_not_email'] || empty($contact['email']) || CRM_Utils_Array::value('is_deceased', $contact) || $contact['on_hold']) {
       /**
        * Contact is decaused or has opted out from mailings so do not send the e-mail
@@ -269,7 +270,16 @@ function civicrm_api3_email_send($params) {
     // Compatibility with CiviCRM >= 4.4
     if ($version >= 4.4) {
       $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+      $assigneeID = CRM_Utils_Array::key('Activity Assignees', $activityContacts);
+      $sourceID = CRM_Utils_Array::key('Activity Source', $activityContacts);
       $targetID = CRM_Utils_Array::key('Activity Targets', $activityContacts);
+
+      $activitySourceParams = array(
+        'activity_id' => $activity->id,
+        'contact_id' => $contactId,
+        'record_type_id' => $sourceID
+      );
+      CRM_Activity_BAO_ActivityContact::create($activitySourceParams);
 
       $activityTargetParams = array(
         'activity_id' => $activity->id,
@@ -277,12 +287,24 @@ function civicrm_api3_email_send($params) {
         'record_type_id' => $targetID
       );
       CRM_Activity_BAO_ActivityContact::create($activityTargetParams);
+
+      if(!empty($toContact['contact_id']) && !empty($assigneeID)){
+        $activityAssigneeParams = array(
+          'activity_id' => $activity->id,
+          'contact_id' => $toContact['contact_id'],
+          'record_type_id' => $assigneeID
+        );
+        CRM_Activity_BAO_ActivityContact::create($activityAssigneeParams);
+      }
     }
     else {
       $activityTargetParams = array(
         'activity_id' => $activity->id,
         'target_contact_id' => $contactId,
       );
+      if(!empty($toContact['contact_id'])){
+        $activityParams['target_contact_id'] = $toContact['contact_id'];
+      }
       CRM_Activity_BAO_Activity::createActivityTarget($activityTargetParams);
     }
 

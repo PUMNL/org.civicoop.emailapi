@@ -42,9 +42,13 @@ class CRM_Emailapi_CivirulesAction_Send extends CRM_CivirulesActions_Generic_Api
     $actionParameters = $this->getActionParameters();
     // change e-mailaddress if other location type is used, falling back on primary if set
     $alternativeAddress = $this->checkAlternativeAddress($actionParameters, $contactId);
-    if ($alternativeAddress) {
-      $parameters['alternative_receiver_address'] = $alternativeAddress;
+    if (!empty($alternativeAddress['contact_id'])) {
+      $parameters['contact_id'] = $alternativeAddress['contact_id'];
+      $parameters['alternative_receiver_address'] = $alternativeAddress['email'];
+    } else if (!empty($alternativeAddress['email'])) {
+      $parameters['alternative_receiver_address'] = $alternativeAddress['email'];
     }
+
     if (!empty($actionParameters['file_on_case'])) {
       $case = $triggerData->getEntityData('Case');
       $parameters['case_id'] = $case['id'];
@@ -57,20 +61,24 @@ class CRM_Emailapi_CivirulesAction_Send extends CRM_CivirulesActions_Generic_Api
     }
     $extra_data = (array) $triggerData;
     $parameters['extra_data'] = $extra_data["\0CRM_Civirules_TriggerData_TriggerData\0entity_data"];
+
     return $parameters;
   }
 
   /**
    * Method to check if an alternative address is required. This is the case if:
    * - the location type is set, then the e-mailaddress of the specific location type (if found) is to be used.
-   * - if alternative receiver address is set, that is to be used
+   * - if alternative receiver address is set, that is to be used, it checks if the emailaddress already exists in the system
+   *   and if so, it returns an array with the alternative emailaddress and correspoding contact id.
    *
    * @param array $actionParameters
    * @param int $contactId
-   * @return string|bool
+   * @return string|array|bool
    */
-  private function checkAlternativeAddress($actionParameters, $contactId) {
-    if (isset($actionParameters['location_type_id']) && !empty($actionParameters['location_type_id'])) {
+  public static function checkAlternativeAddress($actionParameters, $contactId) {
+    $alternativeAddress = array('contact_id'=>'','email'=>'');
+
+    if (isset($actionParameters['location_type_id']) && !empty($actionParameters['location_type_id']) && !empty($contactId)) {
       try {
         $alternateAddress = civicrm_api3('Email', 'getvalue', array(
           'return' => 'email',
@@ -78,15 +86,46 @@ class CRM_Emailapi_CivirulesAction_Send extends CRM_CivirulesActions_Generic_Api
           'location_type_id' => $actionParameters['location_type_id'],
           'options' => array('limit' => 1, 'sort' => 'id DESC'),
           ));
-        return (string) $alternateAddress;
+        $alternativeAddress['contact_id'] = $contactId;
+        $alternativeAddress['email'] = (string) $alternateAddress;
+        //return (string) $alternateAddress;
       }
       catch (CiviCRM_API3_Exception $ex) {
       }
     }
+
     if (isset($actionParameters['alternate_receiver_address']) && !empty($actionParameters['alternate_receiver_address'])) {
-      return (string) $actionParameters['alternate_receiver_address'];
+      try {
+        $emailOfContact = civicrm_api3('Email', 'get', array(
+          'email' => $actionParameters['alternate_receiver_address']
+        ));
+      }
+      catch (CiviCRM_API3_Exception $ex) {
+      }
+
+      $isEmailOfContact = FALSE;
+      if(is_array($emailOfContact['values'])){
+        foreach($emailOfContact['values'] as $value){
+          if($value['is_primary'] == 1) {
+            $isEmailOfContact = TRUE;
+            $alternativeAddress['contact_id'] = $value['contact_id'];
+            $alternativeAddress['email'] = $actionParameters['alternate_receiver_address'];
+          }
+        }
+      }
+
+      if(!empty($alternativeAddress['contact_id']) && !empty($alternativeAddress['email'])){
+        return array('contact_id'=>$alternativeAddress['contact_id'],'email'=> $alternativeAddress['email']);
+      }
+      else if(!empty($actionParameters['alternate_receiver_address'])) {
+        return array('contact_id'=>'','email'=> $actionParameters['alternate_receiver_address']);
+      }
+      else {
+        return FALSE;
+      }
+    } else {
+      return FALSE;
     }
-    return FALSE;
   }
 
   /**
