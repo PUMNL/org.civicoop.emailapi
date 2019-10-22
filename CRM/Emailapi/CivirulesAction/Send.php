@@ -75,7 +75,7 @@ class CRM_Emailapi_CivirulesAction_Send extends CRM_CivirulesActions_Generic_Api
    * @param int $contactId
    * @return string|array|bool
    */
-  public static function checkAlternativeAddress($actionParameters, $contactId) {
+  public static function checkAlternativeAddress($actionParameters, $contactId='') {
     $alternativeAddress = array('contact_id'=>'','email'=>'');
 
     if (isset($actionParameters['location_type_id']) && !empty($actionParameters['location_type_id']) && !empty($contactId)) {
