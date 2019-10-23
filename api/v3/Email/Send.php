@@ -257,6 +257,7 @@ function civicrm_api3_email_send($params) {
 
     $activityParams = array(
       'source_contact_id' => $contactId,
+      'target_contact_id' => $toContact['contact_id']?$toContact['contact_id']:$contactId,
       'activity_type_id' => $activityTypeID,
       'activity_date_time' => date('YmdHis'),
       'subject' => $messageSubject,
@@ -283,7 +284,7 @@ function civicrm_api3_email_send($params) {
 
       $activityTargetParams = array(
         'activity_id' => $activity->id,
-        'contact_id' => $contactId,
+        'contact_id' => $toContact['contact_id'],
         'record_type_id' => $targetID
       );
       CRM_Activity_BAO_ActivityContact::create($activityTargetParams);

@@ -28,10 +28,12 @@ class CRM_Emailapi_CivirulesAction_SendToRelatedContact extends CRM_Civirules_Ac
 
       // change e-mailaddress if other location type is used, falling back on primary if set
       $alternativeAddress = $this->checkAlternativeAddress($params, $related_contact_id);
+
       if ($alternativeAddress) {
         $params['alternative_receiver_address'] = $alternativeAddress;
       }
       $extra_data = (array) $triggerData;
+
       $params['extra_data'] = $extra_data["\0CRM_Civirules_TriggerData_TriggerData\0entity_data"];
       //execute the action
       civicrm_api3('Email', 'send', $params);
@@ -52,7 +54,7 @@ class CRM_Emailapi_CivirulesAction_SendToRelatedContact extends CRM_Civirules_Ac
         $dao = CRM_Core_DAO::executeQuery("
             SELECT contact_id_{$dir} AS contact_id
             FROM civicrm_relationship r
-            INNER JOIN civicrm_contact c ON c.id = r.contact_id_{$dir} 
+            INNER JOIN civicrm_contact c ON c.id = r.contact_id_{$dir}
             WHERE contact_id_{$inverse_dir} = %1 AND relationship_type_id = %2 AND is_active = 1 AND (start_date IS NULL OR start_date <= CURRENT_DATE()) AND (end_date IS NULL OR end_date >= CURRENT_DATE())
             AND c.is_deleted = 0
         ", array(
@@ -62,12 +64,12 @@ class CRM_Emailapi_CivirulesAction_SendToRelatedContact extends CRM_Civirules_Ac
         break;
       case 'recent_active':
         $dao = CRM_Core_DAO::executeQuery("
-            SELECT contact_id_{$dir} as contact_id, r.id, start_date, (CASE WHEN r.start_date IS NULL THEN 1 ELSE 0 END) AS start_date_not_null 
+            SELECT contact_id_{$dir} as contact_id, r.id, start_date, (CASE WHEN r.start_date IS NULL THEN 1 ELSE 0 END) AS start_date_not_null
             FROM civicrm_relationship r
-            INNER JOIN civicrm_contact c ON c.id = r.contact_id_{$dir} 
+            INNER JOIN civicrm_contact c ON c.id = r.contact_id_{$dir}
             WHERE contact_id_{$inverse_dir} = %1 AND relationship_type_id = %2 AND is_active = 1 AND (start_date IS NULL OR start_date <= CURRENT_DATE()) AND (end_date IS NULL OR end_date >= CURRENT_DATE())
             AND c.is_deleted = 0
-            ORDER BY start_date_not_null, r.start_date DESC, r.id DESC 
+            ORDER BY start_date_not_null, r.start_date DESC, r.id DESC
             LIMIT 0, 1
         ", array(
           1 => array($contact_id, 'Integer'),
@@ -76,12 +78,12 @@ class CRM_Emailapi_CivirulesAction_SendToRelatedContact extends CRM_Civirules_Ac
         break;
       case 'recent_inactive':
         $dao = CRM_Core_DAO::executeQuery("
-            SELECT contact_id_{$dir} as contact_id, r.id, end_date, (CASE WHEN r.end_date IS NULL THEN 1 ELSE 0 END) AS end_date_not_null 
+            SELECT contact_id_{$dir} as contact_id, r.id, end_date, (CASE WHEN r.end_date IS NULL THEN 1 ELSE 0 END) AS end_date_not_null
             FROM civicrm_relationship r
-            INNER JOIN civicrm_contact c ON c.id = r.contact_id_{$dir} 
+            INNER JOIN civicrm_contact c ON c.id = r.contact_id_{$dir}
             WHERE contact_id_{$inverse_dir} = %1 AND relationship_type_id = %2 AND is_active = 0
             AND c.is_deleted = 0
-            ORDER BY end_date_not_null, r.end_date DESC, r.id DESC 
+            ORDER BY end_date_not_null, r.end_date DESC, r.id DESC
             LIMIT 0, 1
         ", array(
           1 => array($contact_id, 'Integer'),
