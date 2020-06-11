@@ -107,6 +107,7 @@ function civicrm_api3_email_send($params) {
 
   $body_text    = $messageTemplates->msg_text;
   $body_html    = $messageTemplates->msg_html;
+
   if (isset($params['subject']) && !empty($params['subject'])) {
     $messageSubject = $params['subject'];
   }
@@ -118,10 +119,27 @@ function civicrm_api3_email_send($params) {
   }
 
   $returnValues = array();
+
   foreach($contactIds as $contactId) {
+    $text = '';
+    $html = '';
+    $body_text = '';
+    $body_html = '';
+    $messageSubject = '';
+    $body_text    = $messageTemplates->msg_text;
+    $body_html    = $messageTemplates->msg_html;
+
+    if (!$body_text) {
+      $body_text = CRM_Utils_String::htmlToText($body_html);
+    }
+    if (isset($params['subject']) && !empty($params['subject'])) {
+      $messageSubject = $params['subject'];
+    }
+    else {
+      $messageSubject = $messageTemplates->msg_subject;
+    }
     $contact_params = array(array('contact_id', '=', $contactId, 0, 0));
     list($contact, $_) = CRM_Contact_BAO_Query::apiQuery($contact_params);
-
     //CRM-4524
     $contact = reset($contact);
 
@@ -169,12 +187,17 @@ function civicrm_api3_email_send($params) {
       $toName = $contact['display_name'];
     }
 
-    CRM_Utils_Hook::tokenValues($contact, $contact['contact_id'], NULL, $tokens);
+    // Change the contact array to the format the hook expects.
+    $contactHookArray[$contact['contact_id']] = $contact;
+
+    CRM_Utils_Hook::tokenValues($contactHookArray, array_keys($contactHookArray), NULL, $tokens);
+    // Now update the original array.
+    $contact = $contactHookArray[$contact['contact_id']];
+
     // call token hook
     $hookTokens = array();
     CRM_Utils_Hook::tokens($hookTokens);
     $categories = array_keys($hookTokens);
-
     // do replacements in text and html body
     $type = array('html', 'text');
     foreach ($type as $key => $value) {
@@ -198,6 +221,7 @@ function civicrm_api3_email_send($params) {
     }
     $html = $body_html;
     $text = $body_text;
+
     if (defined('CIVICRM_MAIL_SMARTY') && CIVICRM_MAIL_SMARTY) {
       $smarty = CRM_Core_Smarty::singleton();
       foreach ($type as $elem) {
@@ -211,7 +235,6 @@ function civicrm_api3_email_send($params) {
     $messageSubject = CRM_Utils_Token::replaceDomainTokens($messageSubject, $domain, true, $tokens);
     $messageSubject = CRM_Utils_Token::replaceComponentTokens($messageSubject, $contact, $tokens, true);
     $messageSubject = CRM_Utils_Token::replaceHookTokens($messageSubject, $contact, $categories, true);
-
     if (defined('CIVICRM_MAIL_SMARTY') && CIVICRM_MAIL_SMARTY) {
       $messageSubject = $smarty->fetch("string:{$messageSubject}");
     }
