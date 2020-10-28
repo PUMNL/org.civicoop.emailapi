@@ -113,16 +113,12 @@ class CRM_Emailapi_CivirulesAction_Send extends CRM_CivirulesActions_Generic_Api
           }
         }
       }
+    }
 
-      if(!empty($alternativeAddress['contact_id']) && !empty($alternativeAddress['email'])){
-        return array('contact_id'=>$alternativeAddress['contact_id'],'email'=> $alternativeAddress['email']);
-      }
-      else if(!empty($actionParameters['alternate_receiver_address'])) {
-        return array('contact_id'=>'','email'=> $actionParameters['alternate_receiver_address']);
-      }
-      else {
-        return FALSE;
-      }
+    if(!empty($alternativeAddress['contact_id']) && !empty($alternativeAddress['email'])){
+      return $alternativeAddress;
+    } else if(!empty($actionParameters['alternate_receiver_address'])) {
+      return array('contact_id'=>'','email'=> $actionParameters['alternate_receiver_address']);
     } else {
       return FALSE;
     }
